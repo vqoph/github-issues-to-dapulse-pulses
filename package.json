@@ -1,7 +1,7 @@
 {
-  "name": "github-dapulse-connector",
+  "name": "github-issues-to-dapulse-pulses",
   "version": "1.0.0",
-  "description": "Export github issue to pulses",
+  "description": "Convert github issue to dapulse pulse",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
