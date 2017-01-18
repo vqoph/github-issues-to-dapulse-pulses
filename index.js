@@ -8,8 +8,6 @@ const mdconverter = new showdown.Converter();
 const dapulseNoteTitle = 'Github issue content';
 
 const github = new GithubApi({
-  // optional
-    //debug: true,
     protocol: "https",
     "User-Agent": "blah"
 });
@@ -256,7 +254,7 @@ function noteIssueContent(issue){
   noteContent += `<h2>#${issue.number} - ${issue.title}</h2>`;
   noteContent += `<p>${issueBody}</p>`;
   noteContent += `<br>------------------------------------------<br>`;
-  noteContent += `<a href="${issue.html_url}">Issue sur github</a> (vous devez avoir un compte et être autorisé sur le repo)`;
+  noteContent += `<a href="${issue.html_url}">View in github</a> (if repo is private you need an account and authorisation)`;
   return noteContent;
 }
 
