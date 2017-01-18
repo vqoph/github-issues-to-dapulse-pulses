@@ -1,4 +1,4 @@
-# Github copy issue from github to pulses in dapulse
+# Copy issue from github to pulses in dapulse
 
  - Fetch issues from a selected github repo
  - Fetch pulse from selected dapulse board
