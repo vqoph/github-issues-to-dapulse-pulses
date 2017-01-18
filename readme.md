@@ -1,15 +1,18 @@
-# Github issue to pulses
+# Github copy issue from github to pulses in dapulse
 
- - convert github issues to dapulse entries
+ - Fetch issues from a selected github repo
+ - Fetch pulse from selected dapulse board
+ - Create new isse as new pulses
+ - update existing issues
 
 
 # Usage
 Clone repo
 
 Install dependencies
-`npm install`
+`npm install` at project root
 
-Create a config.json file using this template at repo root
+Create a `config.json` file using this template at repo root
 
 ```
 {
