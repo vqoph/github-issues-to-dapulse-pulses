@@ -1,6 +1,6 @@
 const GithubApi = require('github');
 const DapulseApi = require('dapulse');
-const servicesKeys = require('./services-keys.json');
+const serviceConfig = require('./config.json');
 const showdown = require('showdown');
 const mdconverter = new showdown.Converter();
 
@@ -13,12 +13,12 @@ const github = new GithubApi({
 
 github.authenticate({
     type: "token",
-    token: servicesKeys.github.token,
+    token: serviceConfig.github.token,
 });
 
 
 const dapulse = new DapulseApi({ 
-    apiKey: servicesKeys.dapulse.token
+    apiKey: serviceConfig.dapulse.token
 });
 
 let dapulseScriptColumns = [
@@ -50,8 +50,8 @@ Promise.all(promises).then((result) => {
 function fetchGihubIssues(){
   return new Promise((resolve,reject)=>{
     github.issues.getForRepo({
-        owner: servicesKeys.github.owner,
-        repo: servicesKeys.github.repo,
+        owner: serviceConfig.github.owner,
+        repo: serviceConfig.github.repo,
     }, function(err, res) {
         buildIssueList(res).then((result)=>{
           let issues = result.sort((a,b)=> (parseFloat(a.number) - parseFloat(b.number)));
@@ -79,7 +79,7 @@ function buildIssueList(res) {
 
 function fetchDapulseBoard(){
   return new Promise((resolve,reject)=>{
-    dapulse.boards.board_id.pulses({board_id:  servicesKeys.dapulse.board})
+    dapulse.boards.board_id.pulses({board_id:  serviceConfig.dapulse.board})
     .then(json => resolve(json));
   });
 }
@@ -87,7 +87,7 @@ function fetchDapulseBoard(){
 
 function boardColumnsHandler(){
   return new Promise((resolve,reject)=>{
-    dapulse.boards.board_id.columns({board_id:  servicesKeys.dapulse.board })
+    dapulse.boards.board_id.columns({board_id:  serviceConfig.dapulse.board })
     .then((columns)=>{
       var promises = [];
       dapulseScriptColumns = dapulseScriptColumns.map((columnDef)=>{
@@ -111,7 +111,7 @@ function createColmunPromise(colmunDef){
   return new Promise((resolve,reject)=>{
     let buildConfig = Object.assign({}, colmunDef, {
       action: 'post',
-      board_id: servicesKeys.dapulse.board,
+      board_id: serviceConfig.dapulse.board,
     });
     dapulse.boards.board_id.columns(buildConfig)
     .then(resolve).catch(reject);
@@ -163,7 +163,7 @@ function editPulse(issue,pulse){
             dapulse.pulses.id.notes.note_id({
              action: 'put',
              id: pulse.pulse.id,
-             user_id: servicesKeys.dapulse.userId,
+             user_id: serviceConfig.dapulse.userId,
              note_id: bodyNote.id,
              title: dapulseNoteTitle,
              content: noteIssueContent(issue)
@@ -175,7 +175,7 @@ function editPulse(issue,pulse){
             dapulse.pulses.id.notes({
               action: 'post',
               id: pulse.pulse.id,
-              user_id:servicesKeys.dapulse.userId,
+              user_id:serviceConfig.dapulse.userId,
               title: dapulseNoteTitle,
               content:noteIssueContent(issue)
             }).then(resolve).catch(reject);
@@ -197,7 +197,7 @@ function setPulseStatus(pulse, issue){
     let issueConfig = dapulseScriptColumns.find( item => item.column_id == 'issue' );
     
     promises.push(dapulse.boards.board_id.columns.column_id.numeric({
-      board_id: servicesKeys.dapulse.board,
+      board_id: serviceConfig.dapulse.board,
       column_id: issueConfig.id,
       pulse_id: pulse.pulse.id,
       value:parseInt(issue.number)
@@ -205,7 +205,7 @@ function setPulseStatus(pulse, issue){
     
     let statusConfig = dapulseScriptColumns.find( item => item.column_id == 'status' );
     let body = {
-      board_id: servicesKeys.dapulse.board,
+      board_id: serviceConfig.dapulse.board,
       column_id: statusConfig.id,
       pulse_id: pulse.pulse.id,
       color_index:((issue.state == 'open') ? 1 : 2)
@@ -219,8 +219,8 @@ function createPulse(issue){
   return  new Promise((resolve,reject)=>{
     dapulse.boards.board_id.pulses({
       action: 'post',
-      board_id: servicesKeys.dapulse.board,
-      user_id: servicesKeys.dapulse.userId,
+      board_id: serviceConfig.dapulse.board,
+      user_id: serviceConfig.dapulse.userId,
       'pulse[name]': pulseName(issue)
      })
     .then(response => { 
@@ -228,7 +228,7 @@ function createPulse(issue){
         dapulse.pulses.id.notes({
           action: 'post',
           id: response.pulse.id,
-          user_id:servicesKeys.dapulse.userId,
+          user_id:serviceConfig.dapulse.userId,
           title: dapulseNoteTitle,
           content:noteIssueContent(issue)
         }).then(resolve).catch(reject);
