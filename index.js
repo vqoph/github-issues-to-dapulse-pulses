@@ -16,7 +16,6 @@ github.authenticate({
     token: serviceConfig.github.token,
 });
 
-
 const dapulse = new DapulseApi({ 
     apiKey: serviceConfig.dapulse.token
 });
@@ -27,24 +26,17 @@ let dapulseScriptColumns = [
 ];
 
 
-
-
-
 let promises = [boardColumnsHandler(),fetchGihubIssues(), fetchDapulseBoard()];
-
 Promise.all(promises).then((result) => { 
     var issues = result[1];
     var pulses = result[2] == "[]" ? [] : result[2];
     
     createPulseIfNotExists(issues,pulses).then((result)=>{
-      console.log('sync finished');
+      console.log('sync done');
     });
 }).catch( (err) => {
   console.error(err);
 });
-
-
-
 
 
 function fetchGihubIssues(){
@@ -127,14 +119,11 @@ function createPulseIfNotExists(issues,pulses){
           return issue.number == issueNumber;
        })[0];
 
-      if(issue.state == 'open'){
-        if(!!pulseIssue){
-          editPulse(issue,pulseIssue).then(resolve).catch(reject);
-        }else{     
-          createPulse(issue).then(resolve).catch(reject);
-        }
-      }else{
-        console.log('todo close issue', issue.name);
+    
+      if(!!pulseIssue){
+        editPulse(issue,pulseIssue).then(resolve).catch(reject);
+      }else{     
+        createPulse(issue).then(resolve).catch(reject);
       }
 
     });
