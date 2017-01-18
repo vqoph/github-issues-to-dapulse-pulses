@@ -1,6 +1,5 @@
 const GithubApi = require('github');
 const DapulseApi = require('dapulse');
-const fs = require('fs');
 const servicesKeys = require('./services-keys.json');
 const showdown = require('showdown');
 const mdconverter = new showdown.Converter();
@@ -36,9 +35,6 @@ let promises = [boardColumnsHandler(),fetchGihubIssues(), fetchDapulseBoard()];
 Promise.all(promises).then((result) => { 
     var issues = result[1];
     var pulses = result[2] == "[]" ? [] : result[2];
-
-    fs.writeFileSync('data/issues.json', JSON.stringify(result[1], null, 4));
-    fs.writeFileSync('data/pulses.json', JSON.stringify(pulses, null, 4));
     
     createPulseIfNotExists(issues,pulses).then((result)=>{
       console.log('sync finished');
