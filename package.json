@@ -1,0 +1,17 @@
+{
+  "name": "github-dapulse-connector",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dapulse": "^0.1.1",
+    "github": "^8.1.0",
+    "q": "^1.4.1",
+    "showdown": "^1.6.0"
+  }
+}
