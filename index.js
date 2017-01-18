@@ -24,20 +24,28 @@ const dapulse = new DapulseApi({
     apiKey: servicesKeys.dapulse.token
 });
 
+let dapulseScriptColumns = [
+    { title: 'Issue', type: 'numeric', column_id:'issue' },
+    { title: 'Status',type: 'status',  column_id:'status', labels: ['','Open','Closed'] }
+];
 
-let promises = [fetchGihubIssues(), fetchDapulseBoard()];
+
+
+
+
+let promises = [boardColumnsHandler(),fetchGihubIssues(), fetchDapulseBoard()];
 
 Promise.all(promises).then((result) => { 
-    var issues = result[0];
-    var pulses = result[1] == "[]" ? [] : result[1];
+    var issues = result[1];
+    var pulses = result[2] == "[]" ? [] : result[2];
 
-    fs.writeFileSync('issues/issues.json', JSON.stringify(result[0], null, 4));
-    fs.writeFileSync('issues/pulses.json', JSON.stringify(pulses, null, 4));
+    fs.writeFileSync('data/issues.json', JSON.stringify(result[1], null, 4));
+    fs.writeFileSync('data/pulses.json', JSON.stringify(pulses, null, 4));
     
     createPulseIfNotExists(issues,pulses).then((result)=>{
       console.log('sync finished');
     });
-}).catch((err) => {
+}).catch( (err) => {
   console.error(err);
 });
 
@@ -61,18 +69,17 @@ function fetchGihubIssues(){
 }
 
 function buildIssueList(res) {
-     return new Promise((resolve,reject)=>{
-        let result = res;
-        if (github.hasNextPage(res)) {
-            github.getNextPage(res, function(err, res) {
-              result.forEach((item)=>{res.push(item);});
-              buildIssueList(res).then(resolve, reject);
-            });
-        }else{
-          resolve(result);
-        }
-    });
-    
+  return new Promise((resolve,reject)=>{
+      let result = res;
+      if (github.hasNextPage(res)) {
+          github.getNextPage(res, function(err, res) {
+            result.forEach((item)=>{res.push(item);});
+            buildIssueList(res).then(resolve, reject);
+          });
+      }else{
+        resolve(result);
+      }
+  });
 }
 
 
@@ -84,6 +91,38 @@ function fetchDapulseBoard(){
 }
 
 
+function boardColumnsHandler(){
+  return new Promise((resolve,reject)=>{
+    dapulse.boards.board_id.columns({board_id:  servicesKeys.dapulse.board })
+    .then((columns)=>{
+      var promises = [];
+      dapulseScriptColumns = dapulseScriptColumns.map((columnDef)=>{
+        let matched = columns.filter( col => columnDef.title === col.title );
+        console.log(matched);
+        if(!matched.length){
+          promises.push(createColmunPromise(columnDef));
+        }else{
+          columnDef.id = matched[0].id;
+        }
+        return columnDef;
+      });
+      Promise.all(promises)
+        .then(resolve).catch(reject);
+    }).catch(reject);
+  });
+}
+
+
+function createColmunPromise(colmunDef){
+  return new Promise((resolve,reject)=>{
+    let buildConfig = Object.assign({}, colmunDef, {
+      action: 'post',
+      board_id: servicesKeys.dapulse.board,
+    });
+    dapulse.boards.board_id.columns(buildConfig)
+    .then(resolve).catch(reject);
+  });
+}
 
 function createPulseIfNotExists(issues,pulses){
   return new Promise((resolve,reject)=>{
@@ -94,14 +133,11 @@ function createPulseIfNotExists(issues,pulses){
           return issue.number == issueNumber;
        })[0];
 
-
       if(issue.state == 'open'){
         if(!!pulseIssue){
           editPulse(issue,pulseIssue).then(resolve).catch(reject);
         }else{     
-          createPulse(issue).then((result)=>{
-            resolve(result);
-          }).catch(err=>reject(err));
+          createPulse(issue).then(resolve).catch(reject);
         }
       }else{
         console.log('todo close issue', issue.name);
@@ -113,44 +149,77 @@ function createPulseIfNotExists(issues,pulses){
 
 function editPulse(issue,pulse){
   return new Promise((resolve,reject)=>{
-    dapulse.pulses.id.notes({
-      id:pulse.pulse.id
-    }).then( notes =>{
-      console.log(notes);
+    dapulse.pulses.id({
+      action: 'put',
+      id: pulse.pulse.id,
+      name: pulseName(issue)
+     })
+    .then(response => { 
 
-      let bodyNote = null;
-      if(typeof notes.filter == 'function')
-        bodyNote = notes.filter((item)=> item.title == dapulseNoteTitle)[0];
+      setPulseStatus(pulse, issue).then(()=>{
+         dapulse.pulses.id.notes({
+          id:pulse.pulse.id
+         }).then( notes =>{
 
-      if(bodyNote){
-        dapulse.pulses.id.notes.note_id({
-         action: 'put',
-         id: pulse.pulse.id,
-         user_id: servicesKeys.dapulse.userId,
-         note_id: bodyNote.id,
-         title: dapulseNoteTitle,
-         content: issue.body
-         //create_update: true, // optional
-        })
-        .then(json => { resolve(json); })
-        .catch(err => { reject(err); });
-      }else{
+          let bodyNote = null;
+          if(typeof notes.filter == 'function')
+            bodyNote = notes.filter((item)=> item.title == dapulseNoteTitle)[0];
 
-        dapulse.pulses.id.notes({
-          action: 'post',
-          id: pulse.pulse.id,
-          user_id:servicesKeys.dapulse.userId,
-          title: dapulseNoteTitle,
-          content:noteIssueContent(issue)
-        }).then((result)=>{
-          resolve(result);
-        })
-        .catch(err => { reject(err); });
-      }
-    });
+          if(bodyNote){
+            dapulse.pulses.id.notes.note_id({
+             action: 'put',
+             id: pulse.pulse.id,
+             user_id: servicesKeys.dapulse.userId,
+             note_id: bodyNote.id,
+             title: dapulseNoteTitle,
+             content: noteIssueContent(issue)
+             //create_update: true, // optional
+            })
+            .then(resolve).catch(reject);
+          }else{
+
+            dapulse.pulses.id.notes({
+              action: 'post',
+              id: pulse.pulse.id,
+              user_id:servicesKeys.dapulse.userId,
+              title: dapulseNoteTitle,
+              content:noteIssueContent(issue)
+            }).then(resolve).catch(reject);
+
+          }
+        }).catch(reject);
+      }).catch(reject);
+
+     
+
+    }).catch(reject);
   });
 }
 
+
+function setPulseStatus(pulse, issue){
+    const promise = [];
+
+    let issueConfig = dapulseScriptColumns.find( item => item.column_id == 'issue' );
+    
+    promises.push(dapulse.boards.board_id.columns.column_id.numeric({
+      board_id: servicesKeys.dapulse.board,
+      column_id: issueConfig.id,
+      pulse_id: pulse.pulse.id,
+      value:parseInt(issue.number)
+    }));
+    
+    let statusConfig = dapulseScriptColumns.find( item => item.column_id == 'status' );
+    let body = {
+      board_id: servicesKeys.dapulse.board,
+      column_id: statusConfig.id,
+      pulse_id: pulse.pulse.id,
+      color_index:((issue.state == 'open') ? 1 : 2)
+    };
+    promises.push(dapulse.boards.board_id.columns.column_id.status(body));
+    
+    return Promise.all(promises).catch(console.log);
+}
 
 function createPulse(issue){
   return  new Promise((resolve,reject)=>{
@@ -158,19 +227,18 @@ function createPulse(issue){
       action: 'post',
       board_id: servicesKeys.dapulse.board,
       user_id: servicesKeys.dapulse.userId,
-      'pulse[name]': '#'+issue.number+' '+issue.title
+      'pulse[name]': pulseName(issue)
      })
     .then(response => { 
+      setPulseStatus(response, issue).then(()=>{
         dapulse.pulses.id.notes({
           action: 'post',
           id: response.pulse.id,
           user_id:servicesKeys.dapulse.userId,
           title: dapulseNoteTitle,
           content:noteIssueContent(issue)
-        }).then((result)=>{
-          resolve(result);
-        })
-        .catch(err => { reject(err); });
+        }).then(resolve).catch(reject);
+      });
     })
     .catch( err => { 
       reject(err); 
@@ -181,11 +249,17 @@ function createPulse(issue){
 
 
 function noteIssueContent(issue){
-  let issueBody = mdconverter.makeHtml(issue.body);
+  let issueBody = mdconverter.makeHtml(issue.body.replace(/\n/g, "<br />"));
   let noteContent = "";
-  noteContent += `<a href="${issue.html_url}">${issue.title}</a><br>`;
-  noteContent += `<br>------------------------------------------`;
-  noteContent += `<p>${issueBody}</p>`;
-  return noteContent;
+  
 
+  noteContent += `<h2>#${issue.number} - ${issue.title}</h2>`;
+  noteContent += `<p>${issueBody}</p>`;
+  noteContent += `<br>------------------------------------------<br>`;
+  noteContent += `<a href="${issue.html_url}">Issue sur github</a> (vous devez avoir un compte et être autorisé sur le repo)`;
+  return noteContent;
+}
+
+function pulseName(issue) {
+  return '#'+issue.number+' '+issue.title;
 }
