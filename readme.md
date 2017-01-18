@@ -2,7 +2,7 @@
 
  - Fetch issues from a selected github repo
  - Fetch pulse from selected dapulse board
- - Create new isse as new pulses
+ - Create new issues as new pulses
  - update existing issues
 
 
